@@ -17,34 +17,49 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin) return callback(null, true);
     
-    // List of allowed origins (add your frontend URLs here)
+    // List of allowed origins
     const allowedOrigins = [
-      'http://localhost:5001/api/reportshttp://localhost:5001/api/reportshttp://localhost:3000',  // Dashboard frontend
-      'http://localhost:19006', // Expo web
-      'exp://10.0.2.2:19000',   // Android emulator
-      'http://10.0.2.2:19006',  // Android emulator web
-      'exp://127.0.0.1:19000',  // iOS simulator
-      'http://127.0.0.1:19006', // iOS simulator web
-      'http://10.8.0.121:8081', // Expo development server
+      'http://localhost:3000',  // Local development
+      'http://localhost:5001',  // Local backend
+      'https://kindergarten-app-dashboard.vercel.app',  // Production frontend
+      /^https?:\/\/kindergarten-app-dashboard-[a-z0-9]+\.vercel\.app$/, // Vercel preview URLs
       /^https?:\/\/localhost(:[0-9]+)?$/, // Any localhost with any port
-      /^https?:\/\/10\.0\.2\.2(:[0-9]+)?$/, // Android emulator with any port
-      /^https?:\/\/10\.8\.0\.121(:[0-9]+)?$/, // Development server with any port
+      /^https?:\/\/10\.0\.2\.2(:[0-9]+)?$/, // Android emulator
+      /^https?:\/\/10\.8\.0\.\d{1,3}(:[0-9]+)?$/, // Development server IPs
+      /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:[0-9]+)?$/, // Local network IPs
     ];
 
-    if (allowedOrigins.some(allowedOrigin => 
+    // Check if the origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => 
       typeof allowedOrigin === 'string' 
         ? origin === allowedOrigin 
         : allowedOrigin.test(origin)
-    )) {
+    );
+
+    if (isAllowed) {
+      console.log('CORS allowed for origin:', origin);
       callback(null, true);
     } else {
+      console.warn('CORS blocked for origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 204,
+  preflightContinue: false,
+  maxAge: 600 // 10 minutes
 };
 
 // Apply CORS to all routes

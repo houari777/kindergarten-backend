@@ -11,25 +11,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'kindergarten_app_secure_jwt_secret
 
 const app = express();
 
-// Configuration CORS pour Vercel
+// Configuration CORS simplifiée
 const allowedOrigins = [
   'https://kindergarten-app-dashboard.vercel.app',
   'http://localhost:3000',
-  /https?:\/\/kindergarten-app-dashboard-[a-z0-9]+\.vercel\.app/,
-  /https?:\/\/localhost(:[0-9]+)?/
+  'https://kindergarten-backend-r8q6eyn3c-houari777s-projects.vercel.app'
 ];
 
-// Middleware CORS personnalisé
+// Middleware CORS simplifié
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from origin: ${origin || 'none'}`);
   
-  // Vérifier si l'origine est autorisée
-  if (allowedOrigins.some(allowedOrigin => 
-    typeof allowedOrigin === 'string' 
-      ? origin === allowedOrigin 
-      : allowedOrigin.test(origin)
-  ) || !origin) {
+  // Autoriser les origines spécifiées
+  if (allowedOrigins.includes(origin) || !origin) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');

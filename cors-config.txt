@@ -1,0 +1,30 @@
+// Configuration CORS simplifiée - À copier dans index.js
+const cors = require('cors');
+
+// Configuration de base
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Middleware CORS
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://kindergarten-app-dashboard.vercel.app',
+    'http://localhost:3000',
+    'https://kindergarten-backend-r8q6eyn3c-houari777s-projects.vercel.app'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});

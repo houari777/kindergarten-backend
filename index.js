@@ -11,62 +11,55 @@ const JWT_SECRET = process.env.JWT_SECRET || 'kindergarten_app_secure_jwt_secret
 
 const app = express();
 
-// Configure CORS with specific options
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, postman)
-    if (!origin) return callback(null, true);
-    
-    // List of allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000',  // Local development
-      'http://localhost:5001',  // Local backend
-      'https://kindergarten-app-dashboard.vercel.app',  // Production frontend
-      /^https?:\/\/kindergarten-app-dashboard-[a-z0-9]+\.vercel\.app$/, // Vercel preview URLs
-      /^https?:\/\/localhost(:[0-9]+)?$/, // Any localhost with any port
-      /^https?:\/\/10\.0\.2\.2(:[0-9]+)?$/, // Android emulator
-      /^https?:\/\/10\.8\.0\.\d{1,3}(:[0-9]+)?$/, // Development server IPs
-      /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:[0-9]+)?$/, // Local network IPs
-    ];
+// Configuration CORS pour Vercel
+const allowedOrigins = [
+  'https://kindergarten-app-dashboard.vercel.app',
+  'http://localhost:3000',
+  /https?:\/\/kindergarten-app-dashboard-[a-z0-9]+\.vercel\.app/,
+  /https?:\/\/localhost(:[0-9]+)?/
+];
 
-    // Check if the origin is allowed
-    const isAllowed = allowedOrigins.some(allowedOrigin => 
-      typeof allowedOrigin === 'string' 
-        ? origin === allowedOrigin 
-        : allowedOrigin.test(origin)
-    );
+// Middleware CORS personnalisé
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from origin: ${origin || 'none'}`);
+  
+  // Vérifier si l'origine est autorisée
+  if (allowedOrigins.some(allowedOrigin => 
+    typeof allowedOrigin === 'string' 
+      ? origin === allowedOrigin 
+      : allowedOrigin.test(origin)
+  ) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // Répondre immédiatement aux requêtes OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
-    if (isAllowed) {
-      console.log('CORS allowed for origin:', origin);
-      callback(null, true);
-    } else {
-      console.warn('CORS blocked for origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
-    'Accept',
-    'Origin',
-    'Access-Control-Allow-Headers',
-    'Access-Control-Request-Method',
-    'Access-Control-Request-Headers'
-  ],
-  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
+// Activer CORS pour toutes les routes
+app.use(cors({
+  origin: allowedOrigins,
   credentials: true,
-  optionsSuccessStatus: 204,
-  preflightContinue: false,
-  maxAge: 600 // 10 minutes
-};
-
-// Apply CORS to all routes
-app.use(cors(corsOptions));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+}));
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
 
 // Log all incoming requests
 app.use((req, res, next) => {

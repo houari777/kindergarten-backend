@@ -214,87 +214,112 @@ app.post('/api/create-admin', async (req, res) => {
 
 // Authentication endpoints
 app.post('/api/auth/login', async (req, res) => {
+  console.log('Login request received:', {
+    headers: req.headers,
+    body: {
+      ...req.body,
+      password: req.body.password ? '[REDACTED]' : 'undefined'
+    }
+  });
+
   try {
     const { email, password } = req.body;
-    console.log('Login attempt for email:', email);
     
     if (!email || !password) {
       console.log('Missing email or password');
       return res.status(400).json({ 
         success: false, 
-        message: 'البريد الإلكتروني وكلمة المرور مطلوبان' 
+        message: 'Email and password are required' 
       });
     }
 
     // Normalize email to lowercase for case-insensitive comparison
-    const normalizedEmail = email.toLowerCase().trim();
-    
+    const normalizedEmail = email.toString().toLowerCase().trim();
     console.log('Looking up user with email:', normalizedEmail);
     
-    // Find user by email (case-insensitive)
-    const snapshot = await admin.firestore()
-      .collection('users')
-      .where('email', '==', normalizedEmail)
-      .limit(1)
-      .get();
+    try {
+      // Find user by email (case-insensitive)
+      const snapshot = await admin.firestore()
+        .collection('users')
+        .where('email', '==', normalizedEmail)
+        .limit(1)
+        .get();
 
-    if (snapshot.empty) {
-      console.log('No user found with email:', normalizedEmail);
-      return res.status(401).json({ 
+      if (snapshot.empty) {
+        console.log('No user found with email:', normalizedEmail);
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid email or password' 
+        });
+      }
+
+      const userDoc = snapshot.docs[0];
+      const user = { 
+        id: userDoc.id, 
+        ...userDoc.data(),
+        // Don't send password back to client
+        password: undefined
+      };
+
+      console.log('Found user:', {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+
+      // In a real app, verify password with bcrypt
+      if (!userDoc.data().password || userDoc.data().password !== password) {
+        console.log('Password mismatch or missing password');
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid email or password' 
+        });
+      }
+
+      // Generate JWT token with user ID
+      const tokenPayload = { 
+        userId: userDoc.id,
+        email: user.email, 
+        role: user.role || 'parent' 
+      };
+
+      console.log('Generating token with payload:', tokenPayload);
+      
+      const token = jwt.sign(
+        tokenPayload,
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      console.log('Login successful for user:', user.email);
+      
+      res.json({ 
+        success: true, 
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name
+        }
+      });
+
+    } catch (dbError) {
+      console.error('Database error during login:', dbError);
+      res.status(500).json({ 
         success: false, 
-        message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' 
+        message: 'Database error during login',
+        error: dbError.message 
       });
     }
-
-    const userDoc = snapshot.docs[0];
-    const user = { id: userDoc.id, ...userDoc.data() };
-    
-    console.log('Found user:', { 
-      id: user.id, 
-      email: user.email,
-      role: user.role,
-      passwordLength: user.password ? user.password.length : 'none'
-    });
-
-    // In a real app, verify password with bcrypt
-    if (!user.password || user.password !== password) {
-      console.log('Password mismatch or missing password');
-      return res.status(401).json({ 
-        success: false, 
-        message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' 
-      });
-    }
-
-    // Generate JWT token with user ID
-    const tokenPayload = { 
-      userId: userDoc.id, // Use the document ID as userId
-      email: user.email, 
-      role: user.role || 'parent' 
-    };
-    
-    console.log('Generating token with payload:', tokenPayload);
-    
-    const token = jwt.sign(
-      tokenPayload,
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Remove sensitive data before sending response
-    const userResponse = { ...user };
-    delete userResponse.password;
-    
-    res.json({ 
-      success: true, 
-      token,
-      user: userResponse
-    });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Unexpected error in login endpoint:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'حدث خطأ أثناء تسجيل الدخول' 
+      message: 'An unexpected error occurred during login',
+      error: error.message 
     });
   }
 });

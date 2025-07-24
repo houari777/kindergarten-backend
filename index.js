@@ -40,13 +40,16 @@ const allowedOrigins = [
   'https://kindergarten-backend-r8q6eyn3c-houari777s-projects.vercel.app',
   'https://kindergarten-backend-s82q.onrender.com',
   /^https?:\/\/kindergarten-[a-z0-9-]+\.vercel\.app$/,
+  /^https?:\/\/kindergarten-[a-z0-9-]+\.onrender\.com$/,
   /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/, // Allow IP addresses
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow all in development
     if (process.env.NODE_ENV !== 'production') {
+      console.log('Allowing all origins in development');
       return callback(null, true);
     }
 
@@ -56,6 +59,7 @@ const corsOptions = {
         ? origin === pattern 
         : pattern.test(origin)
     )) {
+      console.log(`Allowing origin: ${origin}`);
       callback(null, true);
     } else {
       console.warn(`CORS blocked: ${origin} is not allowed`);
@@ -69,10 +73,16 @@ const corsOptions = {
     'X-Requested-With', 
     'Accept',
     'X-Access-Token',
-    'X-Refresh-Token'
+    'X-Refresh-Token',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Allow-Methods',
+    'Access-Control-Allow-Credentials'
   ],
   credentials: true,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 };
 
 // Apply CORS to all routes
@@ -80,6 +90,28 @@ app.use(cors(corsOptions));
 
 // Handle preflight requests
 app.options('*', cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(pattern => 
+    typeof pattern === 'string' 
+      ? origin === pattern 
+      : pattern.test(origin)
+  )) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 // JWT Secret configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'kindergarten_app_secure_jwt_secret_2023';

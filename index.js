@@ -37,9 +37,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:19006',
   'https://kindergarten-frontend.onrender.com',
-  'https://kindergarten-backend-r8q6eyn3c-houari777s-projects.vercel.app',
   'https://kindergarten-backend-s82q.onrender.com',
-  /^https?:\/\/kindergarten-[a-z0-9-]+\.vercel\.app$/,
   /^https?:\/\/kindergarten-[a-z0-9-]+\.onrender\.com$/,
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/, // Allow IP addresses
@@ -47,17 +45,23 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('Allowing request with no origin');
+      return callback(null, true);
+    }
+
     // Allow all in development
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Allowing all origins in development');
+      console.log(`Allowing all origins in development. Origin: ${origin}`);
       return callback(null, true);
     }
 
     // Check if origin is in allowed list
-    if (!origin || allowedOrigins.some(pattern => 
-      typeof pattern === 'string' 
-        ? origin === pattern 
-        : pattern.test(origin)
+    if (allowedOrigins.some(pattern =>
+        typeof pattern === 'string'
+            ? origin === pattern
+            : pattern.test(origin)
     )) {
       console.log(`Allowing origin: ${origin}`);
       callback(null, true);
@@ -68,26 +72,34 @@ const corsOptions = {
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
     'Accept',
     'X-Access-Token',
-    'X-Refresh-Token',
-    'Access-Control-Allow-Origin',
-    'Access-Control-Allow-Headers',
-    'Access-Control-Allow-Methods',
-    'Access-Control-Allow-Credentials'
+    'X-Refresh-Token'
   ],
   credentials: true,
-  optionsSuccessStatus: 204,
-  preflightContinue: false,
   optionsSuccessStatus: 200
 };
 
 // Apply CORS to all routes
 app.use(cors(corsOptions));
 
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-Access-Token, X-Refresh-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 // Handle preflight requests
 app.options('*', cors(corsOptions));
 
